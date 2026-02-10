@@ -1,1 +1,39 @@
 
+pipeline {
+  agent any
+  stages {
+    stage('Checkout') {
+      steps { checkout scm }
+    }
+    stage('Build') {
+      steps {
+        sh '''
+          set -euxo pipefail
+          ls -la
+          # If pom.xml is in a subfolder, build there:
+          if [ -f pom.xml ]; then
+            mvn -B -DskipTests clean package
+          elif [ -f student-management/pom.xml ]; then
+            cd student-management
+            mvn -B -DskipTests clean package
+          else
+            # fallback: find pom.xml and build from its directory
+            POM_DIR=$(dirname "$(find . -name pom.xml | head -n 1)")
+            cd "$POM_DIR"
+            mvn -B -DskipTests clean package
+          fi
+        '''
+      }
+    }
+    stage('Archive') {
+      steps {
+        sh '''
+          set -euxo pipefail
+          # archive jar(s) wherever target exists
+          find . -path "*/target/*.jar" -maxdepth 4 -type f -print
+        '''
+        archiveArtifacts artifacts: '**/target/*.jar', fingerprint: true
+      }
+    }
+  }
+}
