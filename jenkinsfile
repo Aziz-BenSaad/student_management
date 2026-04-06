@@ -11,22 +11,19 @@ pipeline {
         stage('Checkout from Git') {
             steps {
                 git branch: 'master',
-                    credentialsId: 'jenkins-token3',
                     url: 'https://github.com/Aziz-BenSaad/student_management.git'
             }
         }
 
         stage('Compile Project') {
             steps {
-                dir('student-management') {
                     sh 'mvn clean compile'
-                }
+                
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
-                dir('student-management') {
                      withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                         sh '''
                             mvn sonar:sonar \
@@ -34,7 +31,7 @@ pipeline {
                               -Dsonar.host.url=http://localhost:9000 \
                               -Dsonar.login=$SONAR_TOKEN
                         '''
-                    }
+                    
                 }
             }
         }
