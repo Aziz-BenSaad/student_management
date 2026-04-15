@@ -1,66 +1,66 @@
 pipeline {
     agent any
-
     tools {
         jdk 'JAVA_HOME'
         maven 'M2_HOME'
     }
-
     stages {
-
         stage('Checkout from Git') {
             steps {
                 git branch: 'master',
                     url: 'https://github.com/Aziz-BenSaad/student_management.git'
             }
         }
-
         stage('Compile Project') {
             steps {
-                    sh 'mvn clean compile'
-                
+                sh 'mvn clean compile'
             }
         }
-
         stage('SonarQube Analysis') {
             steps {
-                     withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                        sh '''
-                            mvn sonar:sonar \
-                              -Dsonar.projectKey=student-management \
-                              -Dsonar.host.url=http://localhost:9000 \
-                              -Dsonar.login=$SONAR_TOKEN
-                        '''
-                    
+                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                    sh '''
+                        mvn sonar:sonar \
+                          -Dsonar.projectKey=student-management \
+                          -Dsonar.host.url=http://localhost:9000 \
+                          -Dsonar.login=$SONAR_TOKEN
+                    '''
                 }
             }
         }
         stage('Docker Build') {
-    steps {
-        sh 'docker build -t mazizbs/student-management:latest .'
-    }
-}
-
-stage('Docker Push') {
-    steps {
-        withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials',
-                         usernameVariable: 'DOCKER_USER',
-                         passwordVariable: 'DOCKER_PASS')]) {
-            sh '''
-                echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                docker push mazizbs/student-management:latest
-            '''
+            steps {
+                sh 'docker build -t mazizbs/student-management:latest .'
+            }
+        }
+        stage('Docker Push') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials',
+                                 usernameVariable: 'DOCKER_USER',
+                                 passwordVariable: 'DOCKER_PASS')]) {
+                    sh '''
+                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                        docker push mazizbs/student-management:latest
+                    '''
+                }
+            }
+        }
+        stage('Deploy to Kubernetes') {
+            steps {
+                sh '''
+                    kubectl apply -f k8s/mysql-deployment.yaml
+                    kubectl apply -f k8s/deployment.yaml
+                    kubectl apply -f k8s/service.yaml
+                '''
+            }
         }
     }
-}
-    }
-
     post {
         success {
-            echo 'SonarQube analysis completed successfully ✅'
+            echo 'Pipeline completed successfully ✅'
         }
         failure {
-            echo 'SonarQube analysis failed ❌'
+            echo 'Pipeline failed ❌'
         }
     }
 }
